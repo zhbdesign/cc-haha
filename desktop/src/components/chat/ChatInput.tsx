@@ -700,7 +700,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
             if (!sess) return s
             return {
               sessions: { ...s.sessions, [oldId]: { ...sess, elapsedSeconds: sess.elapsedSeconds + 1 } },
-            }
+            } as Partial<ChatStore>
           })
         }, 1000)
 
@@ -723,7 +723,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
                 elapsedTimer: optimisticTimer,
               },
             },
-          }
+          } as Partial<ChatStore>
         })
 
         // Clear composer early so user sees their message in the chat
@@ -763,7 +763,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
                     statusVerb: '',
                   },
                 },
-              }
+              } as Partial<ChatStore>
             })
           }
           useUIStore.getState().addToast({
