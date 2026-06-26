@@ -16,7 +16,7 @@ import { sessionsApi, type SessionGitInfo } from '../../api/sessions'
 import { agentsApi } from '../../api/agents'
 import { PermissionModeSelector } from '../controls/PermissionModeSelector'
 import { ModelSelector } from '../controls/ModelSelector'
-import type { AttachmentRef } from '../../types/chat'
+import type { AttachmentRef, UIMessage } from '../../types/chat'
 import { AttachmentGallery } from './AttachmentGallery'
 import { ComposerDropOverlay } from './ComposerDropOverlay'
 import { ProjectContextChip } from '../shared/ProjectContextChip'
@@ -686,9 +686,9 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
         const oldId = activeTabId!
         deferredOldId = oldId
         const optimisticMsgId = `msg-optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`
-        const optimisticMessage = {
+        const optimisticMessage: UIMessage = {
           id: optimisticMsgId,
-          type: 'user_text' as const,
+          type: 'user_text',
           content: displayContent,
           ...(contentForModel !== displayContent ? { modelContent: contentForModel } : {}),
           ...(isMemberSession ? {} : { attachments: visibleAttachmentPayload }),
