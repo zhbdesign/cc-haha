@@ -699,7 +699,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
           useChatStore.setState((s) => {
             const sess = s.sessions[oldId]
             if (!sess) return s
-            const nextSessions: Record<string, PerSessionState> = { ...s.sessions, [oldId]: { ...sess, elapsedSeconds: sess.elapsedSeconds + 1 } }
+            const nextSessions = { ...s.sessions, [oldId]: { ...sess, elapsedSeconds: sess.elapsedSeconds + 1 } } as Record<string, PerSessionState>
             return { sessions: nextSessions }
           })
         }, 1000)
@@ -707,7 +707,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
         useChatStore.setState((s) => {
           const session = s.sessions[oldId]
           if (!session) return s
-          const nextSessions: Record<string, PerSessionState> = {
+          const nextSessions = {
             ...s.sessions,
             [oldId]: {
               ...session,
@@ -721,7 +721,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
               streamingFallback: null,
               elapsedTimer: optimisticTimer,
             },
-          }
+          } as Record<string, PerSessionState>
           return { sessions: nextSessions }
         })
 
@@ -749,7 +749,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
             useChatStore.setState((s) => {
               const sess = s.sessions[oldId]
               if (!sess) return s
-              const nextSessions: Record<string, PerSessionState> = {
+              const nextSessions = {
                 ...s.sessions,
                 [oldId]: {
                   ...sess,
@@ -760,7 +760,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
                   streamingText: '',
                   statusVerb: '',
                 },
-              }
+              } as Record<string, PerSessionState>
               return { sessions: nextSessions }
             })
           }
