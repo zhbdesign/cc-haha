@@ -352,10 +352,6 @@ export const sessionsApi = {
   rename(sessionId: string, title: string) {
     return api.patch<{ ok: true }>(`/api/sessions/${sessionId}`, { title })
   },
-  
-  getSessionSummary(sessionId: string) {
-    return api.get<SessionSummaryResponse>(`/api/sessions/${sessionId}/summary`)
-  },
 
   getSessionSummary(sessionId: string) {
     return api.get<SessionSummaryResponse>(`/api/sessions/${sessionId}/summary`)

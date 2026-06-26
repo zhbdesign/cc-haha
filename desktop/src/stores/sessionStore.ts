@@ -78,21 +78,6 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       set({ error: (err as Error).message, isLoading: false })
     }
   },
-  
-  fetchSessionSummary: async (sessionId: string) => {
-    try {
-      const summary = await sessionsApi.getSessionSummary(sessionId)
-      set((state) => ({
-        sessions: state.sessions.map((session) =>
-          session.id === sessionId
-            ? { ...session, messageCount: summary.messageCount, permissionMode: summary.permissionMode }
-            : session,
-        ),
-      }))
-    } catch {
-      // Silently ignore — summary is non-critical UI enhancement
-    }
-  },
 
   fetchSessionSummary: async (sessionId: string) => {
     try {
