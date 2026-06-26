@@ -177,16 +177,6 @@ export async function handleSessionsApi(
       }
       return await getSessionSlashCommands(sessionId)
     }
-	
-	if (subResource === 'summary') {
-      if (req.method !== 'GET') {
-        return Response.json(
-          { error: 'METHOD_NOT_ALLOWED', message: `Method ${req.method} not allowed` },
-          { status: 405 }
-        )
-      }
-      return await getSessionSummary(sessionId)
-    }
 
     if (subResource === 'inspection') {
       if (req.method !== 'GET') {
@@ -546,11 +536,6 @@ async function getSessionSlashCommands(sessionId: string): Promise<Response> {
     : skillCommands
 
   return Response.json({ commands: slashCommands })
-}
-
-async function getSessionSummary(sessionId: string): Promise<Response> {
-  const summary = await sessionService.getSessionSummary(sessionId)
-  return Response.json(summary)
 }
 
 async function getSessionInspection(sessionId: string, url: URL): Promise<Response> {
