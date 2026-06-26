@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from '../../i18n'
-import { useChatStore } from '../../stores/chatStore'
+import { useChatStore, type PerSessionState } from '../../stores/chatStore'
 import { SETTINGS_TAB_ID, useTabStore } from '../../stores/tabStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useSessionStore } from '../../stores/sessionStore'
@@ -699,7 +699,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
             const sess = s.sessions[oldId]
             if (!sess) return s
             return {
-              sessions: { ...s.sessions, [oldId]: { ...sess, elapsedSeconds: sess.elapsedSeconds + 1 } },
+              sessions: { ...s.sessions, [oldId]: { ...sess, elapsedSeconds: sess.elapsedSeconds + 1 } as PerSessionState },
             }
           })
         }, 1000)
@@ -721,7 +721,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
                 apiRetry: null,
                 streamingFallback: null,
                 elapsedTimer: optimisticTimer,
-              },
+              } as PerSessionState,
             },
           }
         })
@@ -761,7 +761,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
                     elapsedTimer: null,
                     streamingText: '',
                     statusVerb: '',
-                  },
+                  } as PerSessionState,
                 },
               }
             })
