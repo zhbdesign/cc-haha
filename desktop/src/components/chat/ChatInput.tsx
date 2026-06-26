@@ -16,7 +16,7 @@ import { sessionsApi, type SessionGitInfo } from '../../api/sessions'
 import { agentsApi } from '../../api/agents'
 import { PermissionModeSelector } from '../controls/PermissionModeSelector'
 import { ModelSelector } from '../controls/ModelSelector'
-import type { AttachmentRef, UIMessage } from '../../types/chat'
+import type { AttachmentRef } from '../../types/chat'
 import { AttachmentGallery } from './AttachmentGallery'
 import { ComposerDropOverlay } from './ComposerDropOverlay'
 import { ProjectContextChip } from '../shared/ProjectContextChip'
@@ -686,9 +686,9 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
         const oldId = activeTabId!
         deferredOldId = oldId
         const optimisticMsgId = `msg-optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`
-        const optimisticMessage: UIMessage = {
+        const optimisticMessage = {
           id: optimisticMsgId,
-          type: 'user_text',
+          type: 'user_text' as const,
           content: displayContent,
           ...(contentForModel !== displayContent ? { modelContent: contentForModel } : {}),
           ...(isMemberSession ? {} : { attachments: visibleAttachmentPayload }),
@@ -700,7 +700,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
             if (!sess) return s
             return {
               sessions: { ...s.sessions, [oldId]: { ...sess, elapsedSeconds: sess.elapsedSeconds + 1 } },
-            } as Partial<ChatStore>
+            }
           })
         }, 1000)
 
@@ -723,7 +723,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
                 elapsedTimer: optimisticTimer,
               },
             },
-          } as Partial<ChatStore>
+          }
         })
 
         // Clear composer early so user sees their message in the chat
@@ -763,7 +763,7 @@ export function ChatInput({ variant = 'default', compact = false }: ChatInputPro
                     statusVerb: '',
                   },
                 },
-              } as Partial<ChatStore>
+              }
             })
           }
           useUIStore.getState().addToast({
