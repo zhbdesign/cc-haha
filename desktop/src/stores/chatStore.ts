@@ -2194,7 +2194,8 @@ function updateOptimisticSessionTitle(sessionId: string, content: string): void 
   if (!title) return
 
   const session = useSessionStore.getState().sessions.find((item) => item.id === sessionId)
-  if (!session || session.messageCount > 0 || !isPlaceholderSessionTitle(session.title)) return
+  if (!session) return
+  if ((session.messageCount ?? 0) > 0 || !isPlaceholderSessionTitle(session.title)) return
 
   useSessionStore.getState().updateSessionTitle(sessionId, title)
   useTabStore.getState().updateTabTitle(sessionId, title)
