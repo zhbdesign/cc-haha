@@ -276,6 +276,10 @@ type PersistedWorktreeSession = {
 type SessionListSummary = {
   title: string
   createdAt: string
+  /** Timestamp of the last content-significant entry (user/assistant/ai-title/custom-title).
+   *  Used as modifiedAt so metadata-only writes (session-meta, last-prompt, etc.)
+   *  don't produce false "刚刚" timestamps. Falls back to stat.mtime when null. */
+  lastContentModifiedAt: string | null
   messageCount: number
   workDir: string | null
   permissionMode?: string
@@ -289,6 +293,11 @@ type SessionListSummary = {
 type SessionListSummaryLightweight = {
   title: string
   createdAt: string
+  /** Timestamp of the last content-significant entry (user/assistant/ai-title/custom-title).
+   *  Used as modifiedAt so metadata-only writes (session-meta, last-prompt, etc.)
+   *  don't produce false "刚刚" timestamps. Falls back to stat.mtime when null
+   *  (e.g. brand-new sessions with no content entries yet). */
+  lastContentModifiedAt: string | null
   workDir: string | null
   repository?: PreparedSessionWorkspace['repository']
   worktreeSession?: PersistedWorktreeSession | null
@@ -405,6 +414,7 @@ export class SessionService {
   ): Promise<SessionListSummary> {
     let createdAt = stat.birthtime.toISOString()
     let hasCreatedAt = false
+	let lastContentModifiedAt: string | null = null
     let messageCount = 0
     let firstUserTitle: string | null = null
     let goalTitle: string | null = null
@@ -447,6 +457,16 @@ export class SessionService {
           entry.message?.role
         ) {
           messageCount += 1
+        }
+
+		// Track the timestamp of the last content-significant entry so
+        // modifiedAt reflects real user-visible activity, not metadata-only writes
+        if (
+          entry.timestamp &&
+          ((entry.type === 'user' || entry.type === 'assistant') && entry.message?.role ||
+            entry.type === 'ai-title' || entry.type === 'custom-title')
+        ) {
+          lastContentModifiedAt = entry.timestamp
         }
 
         if (entry.type === 'session-meta') {
@@ -534,6 +554,7 @@ export class SessionService {
         firstUserTitle ||
         'Untitled Session',
       createdAt,
+	  lastContentModifiedAt,
       messageCount,
       workDir: latestWorkDir || latestCwd || this.desanitizePath(projectDir),
       ...(permissionMode ? { permissionMode } : {}),
@@ -563,6 +584,7 @@ export class SessionService {
 
     let createdAt = stat.birthtime.toISOString()
     let hasCreatedAt = false
+	let lastContentModifiedAt: string | null = null
     let firstUserTitle: string | null = null
     let goalTitle: string | null = null
     let aiTitle: string | null = null
@@ -587,6 +609,17 @@ export class SessionService {
         if (!hasCreatedAt && entry.timestamp) {
           createdAt = entry.timestamp
           hasCreatedAt = true
+        }
+
+		// Track the timestamp of the last content-significant entry so
+        // modifiedAt reflects real user-visible activity, not metadata-only
+        // writes (session-meta from prewarm, last-prompt re-append, etc.)
+        if (
+          entry.timestamp &&
+          ((entry.type === 'user' || entry.type === 'assistant') && entry.message?.role ||
+            entry.type === 'ai-title' || entry.type === 'custom-title')
+        ) {
+          lastContentModifiedAt = entry.timestamp
         }
 
         if (entry.type === 'session-meta') {
@@ -675,6 +708,7 @@ export class SessionService {
     return {
       title: customTitle || goalTitle || aiTitle || firstUserTitle || 'Untitled Session',
       createdAt,
+	  lastContentModifiedAt,
       workDir: latestWorkDir || latestCwd || this.desanitizePath(projectDir),
       ...(repository ? { repository } : {}),
       ...(worktreeSession !== undefined ? { worktreeSession } : {}),
@@ -699,7 +733,7 @@ export class SessionService {
     const summary = await this.scanSessionListSummary(filePath, projectPath, stat)
     return {
       title: summary.title,
-      modifiedAt: stat.mtime.toISOString(),
+      modifiedAt: summary.lastContentModifiedAt ?? stat.mtime.toISOString(),
       workDir: summary.workDir ?? null,
       projectPath,
     }
@@ -1945,9 +1979,12 @@ export class SessionService {
     const paginatedFiles = filesWithStats.slice(offset, offset + limit)
 
     // Build session list items with metadata from file stats & a lightweight
-    // head+tail scan. messageCount and permissionMode are omitted here and
-    // fetched on demand via /api/sessions/:id/summary when the user selects
-    // a session. This reduces list load time from ~80s (400 full scans) to <1s.
+    // head+tail scan. modifiedAt uses the timestamp of the last content-significant
+    // entry (user/assistant/ai-title/custom-title) so metadata-only writes like
+    // session-meta from prewarm don't produce false "刚刚" timestamps.
+    // messageCount and permissionMode are omitted here and fetched on demand
+    // via /api/sessions/:id/summary when the user selects a session.
+    // This reduces list load time from ~80s (400 full scans) to <1s.
     const items: SessionListItem[] = []
     for (const { filePath, projectDir, sessionId, stat } of paginatedFiles) {
       try {
@@ -1965,7 +2002,7 @@ export class SessionService {
           id: sessionId,
           title: summary.title,
           createdAt: summary.createdAt,
-          modifiedAt: stat.mtime.toISOString(),
+          modifiedAt: summary.lastContentModifiedAt ?? stat.mtime.toISOString(),
           messageCount: 0,
           projectPath: projectDir,
           projectRoot,
@@ -2009,9 +2046,21 @@ export class SessionService {
     const workDirExists = await this.pathExists(workDir)
 
     let createdAt = stat.birthtime.toISOString()
+	let lastContentModifiedAt: string | null = null
     for (const e of entries) {
       if (e.timestamp) {
         createdAt = e.timestamp
+        break
+      }
+    }
+	for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i]
+      if (
+        e.timestamp &&
+        ((e.type === 'user' || e.type === 'assistant') && e.message?.role ||
+          e.type === 'ai-title' || e.type === 'custom-title')
+      ) {
+        lastContentModifiedAt = e.timestamp
         break
       }
     }
@@ -2020,7 +2069,7 @@ export class SessionService {
       id: sessionId,
       title,
       createdAt,
-      modifiedAt: stat.mtime.toISOString(),
+      modifiedAt: lastContentModifiedAt ?? stat.mtime.toISOString(),
       messageCount: messages.length,
       projectPath: projectDir,
       projectRoot,
