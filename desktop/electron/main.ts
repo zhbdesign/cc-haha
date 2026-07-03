@@ -322,7 +322,7 @@ function registerIpcHandlers() {
   registerHandler(ELECTRON_IPC_CHANNELS.terminalSetBashPath, (_event, payload) => getTerminalService().setBashPath(payload as string | null))
   registerHandler(ELECTRON_IPC_CHANNELS.previewOpen, (event, payload) => {
     const { url, bounds } = payload as { url: string, bounds?: PreviewBounds }
-    return getPreviewService().open(currentWindow(event), url, bounds ?? { x: 0, y: 0, width: 0, height: 0 })
+    return getPreviewService().open(currentWindow(event), url, bounds ?? { x: 0, y: 0, width: 0, height: 0 }, mainWindow?.webContents)
   })
   registerHandler(ELECTRON_IPC_CHANNELS.previewNavigate, (_event, payload) => getPreviewService().navigate(String(payload)))
   registerHandler(ELECTRON_IPC_CHANNELS.previewSetBounds, (_event, payload) => getPreviewService().setBounds(payload as PreviewBounds))
