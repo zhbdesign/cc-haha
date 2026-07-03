@@ -3,6 +3,7 @@ import { Camera, Loader2, Minus, MousePointer2, Plus, RotateCcw } from 'lucide-r
 import { BrowserAddressBar } from './BrowserAddressBar'
 import { computeWebviewBounds } from './computeWebviewBounds'
 import { getServerBaseUrl, isLoopbackHostname } from '../../lib/desktopRuntime'
+import { getDesktopHost } from '../../lib/desktopHost'
 import { classifyPreviewLink } from '../../lib/previewLinkRouter'
 import { isAbsoluteLocalPath, localFileUrl, previewFsUrl } from '../../lib/handlePreviewLink'
 import { previewBridge } from '../../lib/previewBridge'
@@ -173,8 +174,16 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
 
   useEffect(() => {
     let unsub: (() => void) | undefined
+    let zoomUnsub: (() => void) | undefined
     void subscribePreviewEvents(sessionId).then((u) => { unsub = u })
-    return () => { unsub?.() }
+    const host = getDesktopHost()
+    if (host.capabilities.previewWebview) {
+      host.preview.onAutoFitZoom((zoomLevel) => {
+        store.setZoom(sessionId, normalizeBrowserZoom(zoomLevel))
+      }).then((u) => { zoomUnsub = u })
+    }
+
+    return () => { unsub?.(); zoomUnsub?.() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
