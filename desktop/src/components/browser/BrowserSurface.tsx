@@ -18,6 +18,7 @@ import {
 import { useOverlayStore } from '../../stores/overlayStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useWorkspacePanelStore } from '../../stores/workspacePanelStore'
+import { getDesktopHost } from '../../lib/desktopHost'
 
 const LOCAL_PREVIEW_PATH_PREFIXES = ['/preview-fs/', '/local-file/']
 const LOCAL_PREVIEW_READY_TIMEOUT_MS = 2500
@@ -200,34 +201,81 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
     requestNativePreview(url)
   }
 
-  const actionButtonClass = [
-    'inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors',
+  const setPreviewZoom = (nextZoom: number) => {
+    store.setZoom(sessionId, normalizeBrowserZoom(nextZoom))
+  }
+
+  const toolbarBtnClass = [
+    'inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors',
+    'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)]',
+    'disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[var(--color-text-secondary)]',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
   ].join(' ')
 
-  const previewActions = (
+  const actionBtnClass = [
+    'inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors',
+    'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)]',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
+  ].join(' ')
+
+  // All toolbar actions live in the address bar area, which is ABOVE the
+  // preview-host div. This ensures they are never covered by the native
+  // WebContentsView (which always renders above DOM content in Electron).
+  const toolbarActions = (
     <>
+      <div
+        data-testid="browser-zoom-controls"
+        className="inline-flex h-7 items-center gap-0.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-1"
+      >
+        <button
+          aria-label="缩小预览"
+          title="缩小预览"
+          disabled={!canZoomOut}
+          className={toolbarBtnClass}
+          onClick={() => setPreviewZoom(previewZoom - BROWSER_ZOOM_STEP)}
+        >
+          <Minus size={13} />
+        </button>
+        <span className="min-w-[36px] select-none text-center text-[11px] font-medium tabular-nums text-[var(--color-text-secondary)]">
+          {zoomPercent}%
+        </span>
+        <button
+          aria-label="放大预览"
+          title="放大预览"
+          disabled={!canZoomIn}
+          className={toolbarBtnClass}
+          onClick={() => setPreviewZoom(previewZoom + BROWSER_ZOOM_STEP)}
+        >
+          <Plus size={13} />
+        </button>
+        {previewZoom !== DEFAULT_BROWSER_ZOOM && (
+          <button
+            aria-label="重置预览缩放"
+            title="重置预览缩放"
+            className={toolbarBtnClass}
+            onClick={() => setPreviewZoom(DEFAULT_BROWSER_ZOOM)}
+          >
+            <RotateCcw size={13} />
+          </button>
+        )}
+      </div>
       <button
         aria-label="截图"
         title="截图"
-        className={[
-          actionButtonClass,
-          'border-transparent text-[var(--color-text-secondary)] hover:border-[var(--color-border)]',
-          'hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)]',
-        ].join(' ')}
+        className={actionBtnClass}
         onClick={() => previewBridge.message({ v: 1, type: 'capture', kind: 'full' })}
       >
-        <Camera size={16} />
+        <Camera size={14} />
       </button>
       <button
         aria-label="选择元素"
         aria-pressed={Boolean(session.pickerActive)}
         title="选择元素"
         className={[
-          actionButtonClass,
+          actionBtnClass,
           session.pickerActive
-            ? 'border-[var(--color-brand)]/45 bg-[var(--color-surface-selected)] text-[var(--color-brand)]'
-            : 'border-transparent text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)]',
+            ? 'bg-[var(--color-surface-selected)] text-[var(--color-brand)]'
+            : '',
         ].join(' ')}
         onClick={() => {
           const cur = useBrowserPanelStore.getState().bySession[sessionId]
@@ -236,21 +284,26 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
           previewBridge.message({ v: 1, type: next ? 'enter-picker' : 'exit-picker' })
         }}
       >
-        <MousePointer2 size={16} />
+        <MousePointer2 size={14} />
       </button>
+      {getDesktopHost().capabilities.previewWebview && (
+        <button
+          aria-label="展开为完整浏览器"
+          title="展开为完整浏览器"
+          className={actionBtnClass}
+          onClick={() => {
+            const tabStore = useTabStore.getState()
+            const workspaceStore = useWorkspacePanelStore.getState()
+            workspaceStore.setMode(sessionId, 'browser')
+            tabStore.openWorkbenchTab(sessionId)
+            workspaceStore.closePanel(sessionId)
+          }}
+        >
+          <Maximize2 size={14} />
+        </button>
+      )}
     </>
   )
-
-  const setPreviewZoom = (nextZoom: number) => {
-    store.setZoom(sessionId, normalizeBrowserZoom(nextZoom))
-  }
-
-  const zoomButtonClass = [
-    'inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors',
-    'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)]',
-    'disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-[var(--color-text-secondary)]',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
-  ].join(' ')
 
   return (
     <div className="flex h-full flex-col">
@@ -277,68 +330,14 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
           store.setLoading(sessionId, true)
           requestNativePreview(session.url, { force: true })
         }}
-        rightActions={previewActions}
+        rightActions={toolbarActions}
       />
-      <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-surface)]">
-        <div ref={hostRef} className="relative min-h-0 flex-1 overflow-hidden" data-testid="preview-host">
+      <div ref={hostRef} className="relative min-h-0 flex-1 overflow-hidden bg-[var(--color-surface)]" data-testid="preview-host">
           {session.loading && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] text-[var(--color-text-tertiary)]">
               <Loader2 size={18} className="animate-spin" aria-label="加载中" />
             </div>
           )}
-        </div>
-        <div className="flex h-10 shrink-0 items-center justify-between border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-2">
-          <button
-            aria-label="展开为完整浏览器"
-            title="展开为完整浏览器"
-            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
-            onClick={() => {
-              const tabStore = useTabStore.getState()
-              const workspaceStore = useWorkspacePanelStore.getState()
-              workspaceStore.setMode(sessionId, 'browser')
-              tabStore.openWorkbenchTab(sessionId)
-              workspaceStore.closePanel(sessionId)
-            }}
-          >
-            <Maximize2 size={14} />
-            <span>展开</span>
-          </button>
-          <div
-            data-testid="browser-zoom-controls"
-            className="inline-flex h-8 items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-1 shadow-sm"
-          >
-            <button
-              aria-label="缩小预览"
-              title="缩小预览"
-              disabled={!canZoomOut}
-              className={zoomButtonClass}
-              onClick={() => setPreviewZoom(previewZoom - BROWSER_ZOOM_STEP)}
-            >
-              <Minus size={14} />
-            </button>
-            <span className="min-w-11 select-none text-center text-xs font-medium tabular-nums text-[var(--color-text-secondary)]">
-              {zoomPercent}%
-            </span>
-            <button
-              aria-label="放大预览"
-              title="放大预览"
-              disabled={!canZoomIn}
-              className={zoomButtonClass}
-              onClick={() => setPreviewZoom(previewZoom + BROWSER_ZOOM_STEP)}
-            >
-              <Plus size={14} />
-            </button>
-            <button
-              aria-label="重置预览缩放"
-              title="重置预览缩放"
-              disabled={previewZoom === DEFAULT_BROWSER_ZOOM}
-              className={zoomButtonClass}
-              onClick={() => setPreviewZoom(DEFAULT_BROWSER_ZOOM)}
-            >
-              <RotateCcw size={14} />
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )
