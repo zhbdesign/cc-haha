@@ -149,6 +149,7 @@ export function createElectronHost(bridge: ElectronHostBridge): DesktopHost {
       close: () => invoke(ELECTRON_IPC_CHANNELS.previewClose),
       message: payload => invoke(ELECTRON_IPC_CHANNELS.previewMessage, payload),
       onEvent: handler => subscribe(ELECTRON_EVENT_CHANNELS.previewEvent, handler),
+      onAutoFitZoom: handler => subscribe<number>(ELECTRON_EVENT_CHANNELS.previewAutoFitZoom, handler),
     },
     appMode: {
       get: () => invoke(ELECTRON_IPC_CHANNELS.appModeGet),
