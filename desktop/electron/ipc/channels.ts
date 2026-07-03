@@ -58,6 +58,7 @@ export const ELECTRON_EVENT_CHANNELS = {
   terminalOutput: 'desktop:terminal:output',
   terminalExit: 'desktop:terminal:exit',
   previewEvent: 'desktop:preview:event',
+  previewAutoFitZoom: 'desktop:preview:auto-fit-zoom',
 } as const
 
 export const ELECTRON_INTERNAL_CHANNELS = {
