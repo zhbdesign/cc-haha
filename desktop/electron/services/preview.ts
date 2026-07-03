@@ -92,22 +92,27 @@ export class ElectronPreviewService {
   private view: PreviewViewLike | null = null
   private parent: PreviewParentWindowLike | null = null
   private zoomFactor = 1
+  private pendingAutoFitZoom: boolean = false
+  private rendererRef: PreviewWebContentsLike | null = null
 
   constructor(options: ElectronPreviewServiceOptions) {
     this.createView = options.createView
     this.previewScriptPath = options.previewScriptPath
   }
 
-  async open(parent: PreviewParentWindowLike, url: string, bounds: PreviewBounds): Promise<void> {
+  async open(parent: PreviewParentWindowLike, url: string, bounds: PreviewBounds, renderer?: PreviewWebContentsLike | null): Promise<void> {
     const normalizedUrl = normalizePreviewUrl(url)
     const normalizedBounds = normalizePreviewBounds(bounds)
-    const view = this.ensureView(parent)
+    this.rendererRef = renderer ?? null
+    const view = this.ensureView(parent, renderer ?? null)
     view.setBounds(normalizedBounds)
+    this.pendingAutoFitZoom = true
     await view.webContents.loadURL(normalizedUrl)
   }
 
   async navigate(url: string): Promise<void> {
     const view = this.requireView()
+    this.pendingAutoFitZoom = true
     await view.webContents.loadURL(normalizePreviewUrl(url))
   }
 
@@ -156,12 +161,14 @@ export class ElectronPreviewService {
     renderer?.send(ELECTRON_EVENT_CHANNELS.previewEvent, event)
   }
 
-  private ensureView(parent: PreviewParentWindowLike): PreviewViewLike {
+  private ensureView(parent: PreviewParentWindowLike, renderer?: PreviewWebContentsLike | null): PreviewViewLike {
     if (this.view) return this.view
+    this.rendererRef = renderer ?? null
     const view = this.createView()
     parent.contentView.addChildView(view)
     view.webContents.on('did-finish-load', () => {
       void this.injectPreviewAgent(view)
+      void this.autoFitZoomIfNeeded(view)
     })
     this.applyZoomFactor(view)
     this.view = view
@@ -189,6 +196,63 @@ export class ElectronPreviewService {
 
   private applyZoomFactor(view: PreviewViewLike | null): void {
     view?.webContents.setZoomFactor?.(this.zoomFactor)
+  }
+
+  private async autoFitZoomIfNeeded(view: PreviewViewLike): Promise<void> {
+    if (!this.pendingAutoFitZoom) return
+    this.pendingAutoFitZoom = false
+
+    try {
+      const wc = view.webContents
+      if (wc.isDestroyed?.()) return
+
+      // Get page content dimensions and viewport width to calculate fit-to-width zoom
+      const dims = await wc.executeJavaScript(`
+        ({
+          bodyScrollWidth: Math.max(document.body?.scrollWidth ?? 0, document.documentElement?.scrollWidth ?? 0),
+          bodyScrollHeight: Math.max(document.body?.scrollHeight ?? 0, document.documentElement?.scrollHeight ?? 0),
+          clientWidth: window.innerWidth,
+          clientHeight: window.innerHeight,
+        })
+      `) as { bodyScrollWidth: number; bodyScrollHeight: number; clientWidth: number; clientHeight: number }
+
+      if (dims.bodyScrollWidth <= 0 || dims.clientWidth <= 0) return
+
+      const containerBounds = view.getBounds ? undefined : undefined
+      let containerWidth = dims.clientWidth
+
+      try {
+        const bounds = view.getBounds ? (view as unknown as { getBounds(): PreviewBounds }).getBounds() : null
+        if (bounds && bounds.width > 0) {
+          containerWidth = bounds.width
+        }
+      } catch {
+        // Fallback to clientWidth
+      }
+
+      // Calculate zoom to fit content width within container
+      // Add small padding (8px) for better visual appearance
+      const padding = 16
+      const targetWidth = containerWidth - padding
+      const fitZoom = Math.min(1, targetWidth / dims.bodyScrollWidth)
+
+      // Clamp to valid range and round to nearest step
+      const clampedZoom = Math.max(0.1, Math.min(2.0, fitZoom))
+      const roundedZoom = Math.round(clampedZoom * 10) / 10
+
+      // Only apply if significantly different from current zoom (avoid unnecessary changes)
+      if (Math.abs(roundedZoom - this.zoomFactor) > 0.05) {
+        this.zoomFactor = normalizeZoomFactor(roundedZoom)
+        this.applyZoomFactor(view)
+
+        // Notify renderer about the new zoom level so UI updates
+        if (this.rendererRef && !this.rendererRef.isDestroyed?.()) {
+          this.rendererRef.send(ELECTRON_EVENT_CHANNELS.previewAutoFitZoom, this.zoomFactor)
+        }
+      }
+    } catch {
+      // Auto-fit is best-effort; if it fails the user can still manually zoom
+    }
   }
 
   private async captureScreenshotToRenderer(kind: PreviewHostCaptureMessage['kind'], renderer: PreviewWebContentsLike): Promise<void> {
