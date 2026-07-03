@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { Camera, Loader2, Minus, MousePointer2, Plus, RotateCcw } from 'lucide-react'
+import { Camera, Loader2, Maximize2, Minus, MousePointer2, Plus, RotateCcw } from 'lucide-react'
 import { BrowserAddressBar } from './BrowserAddressBar'
 import { computeWebviewBounds } from './computeWebviewBounds'
 import { getServerBaseUrl, isLoopbackHostname } from '../../lib/desktopRuntime'
@@ -16,6 +16,8 @@ import {
   useBrowserPanelStore,
 } from '../../stores/browserPanelStore'
 import { useOverlayStore } from '../../stores/overlayStore'
+import { useTabStore } from '../../stores/tabStore'
+import { useWorkspacePanelStore } from '../../stores/workspacePanelStore'
 
 const LOCAL_PREVIEW_PATH_PREFIXES = ['/preview-fs/', '/local-file/']
 const LOCAL_PREVIEW_READY_TIMEOUT_MS = 2500
@@ -285,7 +287,22 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
             </div>
           )}
         </div>
-        <div className="flex h-10 shrink-0 items-center justify-end border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-2">
+        <div className="flex h-10 shrink-0 items-center justify-between border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-2">
+          <button
+            aria-label="展开为完整浏览器"
+            title="展开为完整浏览器"
+            className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+            onClick={() => {
+              const tabStore = useTabStore.getState()
+              const workspaceStore = useWorkspacePanelStore.getState()
+              workspaceStore.setMode(sessionId, 'browser')
+              tabStore.openWorkbenchTab(sessionId)
+              workspaceStore.closePanel(sessionId)
+            }}
+          >
+            <Maximize2 size={14} />
+            <span>展开</span>
+          </button>
           <div
             data-testid="browser-zoom-controls"
             className="inline-flex h-8 items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-1 shadow-sm"
