@@ -322,10 +322,34 @@ function registerIpcHandlers() {
   registerHandler(ELECTRON_IPC_CHANNELS.terminalSetBashPath, (_event, payload) => getTerminalService().setBashPath(payload as string | null))
   registerHandler(ELECTRON_IPC_CHANNELS.previewOpen, (event, payload) => {
     const { url, bounds } = payload as { url: string, bounds?: PreviewBounds }
-    return getPreviewService().open(currentWindow(event), url, bounds ?? { x: 0, y: 0, width: 0, height: 0 })
+    const window = currentWindow(event)
+    // The renderer sends CSS coordinates from getBoundingClientRect(), which
+    // are scaled by the main window's zoom factor. WebContentsView.setBounds()
+    // expects unzoomed DIP coordinates, so we divide by getZoomFactor() to
+    // convert from the renderer's zoomed coordinate space back to DIP.
+    const zoomFactor = window.webContents.getZoomFactor()
+    const rawBounds = bounds ?? { x: 0, y: 0, width: 0, height: 0 }
+    const compensatedBounds: PreviewBounds = {
+      x: Math.round(rawBounds.x / zoomFactor),
+      y: Math.round(rawBounds.y / zoomFactor),
+      width: Math.max(0, Math.round(rawBounds.width / zoomFactor)),
+      height: Math.max(0, Math.round(rawBounds.height / zoomFactor)),
+    }
+    return getPreviewService().open(window, url, compensatedBounds)
   })
   registerHandler(ELECTRON_IPC_CHANNELS.previewNavigate, (_event, payload) => getPreviewService().navigate(String(payload)))
-  registerHandler(ELECTRON_IPC_CHANNELS.previewSetBounds, (_event, payload) => getPreviewService().setBounds(payload as PreviewBounds))
+  registerHandler(ELECTRON_IPC_CHANNELS.previewSetBounds, (event, payload) => {
+    const window = currentWindow(event)
+    const zoomFactor = window.webContents.getZoomFactor()
+    const rawBounds = payload as PreviewBounds
+    const compensatedBounds: PreviewBounds = {
+      x: Math.round(rawBounds.x / zoomFactor),
+      y: Math.round(rawBounds.y / zoomFactor),
+      width: Math.max(0, Math.round(rawBounds.width / zoomFactor)),
+      height: Math.max(0, Math.round(rawBounds.height / zoomFactor)),
+    }
+    getPreviewService().setBounds(compensatedBounds)
+  })
   registerHandler(ELECTRON_IPC_CHANNELS.previewSetVisible, (_event, payload) => getPreviewService().setVisible(Boolean(payload)))
   registerHandler(ELECTRON_IPC_CHANNELS.previewSetZoom, (_event, payload) => getPreviewService().setZoomFactor(payload))
   registerHandler(ELECTRON_IPC_CHANNELS.previewClose, () => getPreviewService().close())
