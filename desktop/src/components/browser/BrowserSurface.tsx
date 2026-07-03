@@ -250,8 +250,46 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]',
   ].join(' ')
 
+  const zoomControls = (
+    <div
+      data-testid="browser-zoom-controls"
+      className="inline-flex h-7 items-center gap-0.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-1 shadow-sm"
+    >
+      <button
+        aria-label="缩小预览"
+        title="缩小预览"
+        disabled={!canZoomOut}
+        className={zoomButtonClass}
+        onClick={() => setPreviewZoom(previewZoom - BROWSER_ZOOM_STEP)}
+      >
+        <Minus size={13} />
+      </button>
+      <span className="min-w-10 select-none text-center text-[11px] font-medium tabular-nums text-[var(--color-text-secondary)]">
+        {zoomPercent}%
+      </span>
+      <button
+        aria-label="放大预览"
+        title="放大预览"
+        disabled={!canZoomIn}
+        className={zoomButtonClass}
+        onClick={() => setPreviewZoom(previewZoom + BROWSER_ZOOM_STEP)}
+      >
+        <Plus size={13} />
+      </button>
+      <button
+        aria-label="重置预览缩放"
+        title="重置预览缩放"
+        disabled={previewZoom === DEFAULT_BROWSER_ZOOM}
+        className={zoomButtonClass}
+        onClick={() => setPreviewZoom(DEFAULT_BROWSER_ZOOM)}
+      >
+        <RotateCcw size={13} />
+      </button>
+    </div>
+  )
+
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <BrowserAddressBar
         url={session.url}
         canGoBack={session.canGoBack}
@@ -275,52 +313,20 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
           store.setLoading(sessionId, true)
           requestNativePreview(session.url, { force: true })
         }}
-        rightActions={previewActions}
+        rightActions={
+          <>
+            {previewActions}
+            {zoomControls}
+          </>
+        }
       />
-      <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-surface)]">
-        <div ref={hostRef} className="relative min-h-0 flex-1 overflow-hidden" data-testid="preview-host">
+      <div className="relative min-h-0 flex-1 overflow-hidden bg-[var(--color-surface)]">
+        <div ref={hostRef} className="absolute inset-0" data-testid="preview-host">
           {session.loading && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] text-[var(--color-text-tertiary)]">
               <Loader2 size={18} className="animate-spin" aria-label="加载中" />
             </div>
           )}
-        </div>
-        <div className="flex h-10 shrink-0 items-center justify-end border-t border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-2">
-          <div
-            data-testid="browser-zoom-controls"
-            className="inline-flex h-8 items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-1 shadow-sm"
-          >
-            <button
-              aria-label="缩小预览"
-              title="缩小预览"
-              disabled={!canZoomOut}
-              className={zoomButtonClass}
-              onClick={() => setPreviewZoom(previewZoom - BROWSER_ZOOM_STEP)}
-            >
-              <Minus size={14} />
-            </button>
-            <span className="min-w-11 select-none text-center text-xs font-medium tabular-nums text-[var(--color-text-secondary)]">
-              {zoomPercent}%
-            </span>
-            <button
-              aria-label="放大预览"
-              title="放大预览"
-              disabled={!canZoomIn}
-              className={zoomButtonClass}
-              onClick={() => setPreviewZoom(previewZoom + BROWSER_ZOOM_STEP)}
-            >
-              <Plus size={14} />
-            </button>
-            <button
-              aria-label="重置预览缩放"
-              title="重置预览缩放"
-              disabled={previewZoom === DEFAULT_BROWSER_ZOOM}
-              className={zoomButtonClass}
-              onClick={() => setPreviewZoom(DEFAULT_BROWSER_ZOOM)}
-            >
-              <RotateCcw size={14} />
-            </button>
-          </div>
         </div>
       </div>
     </div>
