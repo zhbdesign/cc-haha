@@ -16,6 +16,7 @@ import {
   useBrowserPanelStore,
 } from '../../stores/browserPanelStore'
 import { useOverlayStore } from '../../stores/overlayStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 
 const LOCAL_PREVIEW_PATH_PREFIXES = ['/preview-fs/', '/local-file/']
 const LOCAL_PREVIEW_READY_TIMEOUT_MS = 2500
@@ -70,6 +71,7 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
   const session = useBrowserPanelStore((s) => s.bySession[sessionId])
   const store = useBrowserPanelStore.getState()
   const overlayCount = useOverlayStore((s) => s.count)
+  const appZoom = useSettingsStore((s) => s.uiZoom)
   const previewZoom = session?.zoom ?? DEFAULT_BROWSER_ZOOM
   const zoomPercent = Math.round(previewZoom * 100)
   const canZoomOut = previewZoom > MIN_BROWSER_ZOOM
@@ -78,7 +80,7 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
   const reportBounds = () => {
     const el = hostRef.current
     if (!el) return
-    previewBridge.setBounds(computeWebviewBounds(el.getBoundingClientRect()))
+    previewBridge.setBounds(computeWebviewBounds(el.getBoundingClientRect(), appZoom))
   }
 
   const loadNativePreview = (
@@ -118,7 +120,7 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
       const el = hostRef.current
       hasNativePreviewRef.current = true
       if (el) {
-        await previewBridge.open(url, computeWebviewBounds(el.getBoundingClientRect()))
+        await previewBridge.open(url, computeWebviewBounds(el.getBoundingClientRect(), appZoom))
       } else {
         await previewBridge.navigate(url)
       }
@@ -160,6 +162,15 @@ export function BrowserSurface({ sessionId }: { sessionId: string }) {
     if (!session) return
     void previewBridge.setZoom(previewZoom)
   }, [previewZoom, session])
+
+  // When the app-level zoom changes, the renderer coordinate system shifts.
+  // getBoundingClientRect() returns zoomed values, so WebContentsView.setBounds()
+  // must be updated with the new zoom-compensated DIP coordinates.
+  useEffect(() => {
+    if (!session) return
+    reportBounds()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appZoom, session])
 
   useEffect(() => {
     const el = hostRef.current
