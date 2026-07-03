@@ -218,6 +218,7 @@ export type DesktopHost = {
     close(): Promise<void>
     message(payload: PreviewHostMessage): Promise<void>
     onEvent(handler: (event: unknown) => void): Promise<DesktopHostUnlisten>
+    onAutoFitZoom(handler: (zoomLevel: number) => void): Promise<DesktopHostUnlisten>
   }
   appMode: {
     get(): Promise<AppModeConfig>
