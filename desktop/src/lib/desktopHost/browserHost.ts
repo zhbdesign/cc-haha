@@ -232,6 +232,9 @@ export const browserHost: DesktopHost = {
     async onEvent(): Promise<DesktopHostUnlisten> {
       return noopUnlisten
     },
+    async onAutoFitZoom(): Promise<DesktopHostUnlisten> {
+      return noopUnlisten
+    },
   },
   appMode: {
     async get() {
